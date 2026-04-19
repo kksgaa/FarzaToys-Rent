@@ -121,6 +121,7 @@ class AppStore extends ChangeNotifier {
       startTime: DateTime.now(),
       durationMinutes: durationMinutes,
       isPaid: isPaid,
+      totalPrice: (durationMinutes ~/ 15) * car.pricePer15Mins,
     );
 
     final newRental = await SupabaseService.addRental(rental);

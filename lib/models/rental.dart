@@ -16,23 +16,23 @@ class Rental {
   String status;
 
   Rental({
-    required this.id,
-    required this.carId,
-    required this.carName,
-    required this.renterName,
-    required this.renterPhone,
-    required this.renterAddress,
-    required this.startTime,
-    required this.durationMinutes,
-    this.isPaid = false,
-    this.status = 'active',
-    DateTime? endTime,
-    int? totalPrice,
-  }) {
-    this.endTime = endTime ?? startTime.add(Duration(minutes: durationMinutes));
-    
-    this.totalPrice = totalPrice ?? ((durationMinutes ~/ 15) * 20000);
-  }
+  required this.id,
+  required this.carId,
+  required this.carName,
+  required this.renterName,
+  required this.renterPhone,
+  required this.renterAddress,
+  required this.startTime,
+  required this.durationMinutes,
+  this.isPaid = false,
+  this.status = 'active',
+  DateTime? endTime,
+  int? totalPrice,
+  int pricePer15Mins = 20000,
+}) {
+  this.endTime = endTime ?? startTime.add(Duration(minutes: durationMinutes));
+  this.totalPrice = totalPrice ?? ((durationMinutes ~/ 15) * pricePer15Mins);
+}
 
   factory Rental.fromJson(Map<String, dynamic> json) {
     return Rental(
