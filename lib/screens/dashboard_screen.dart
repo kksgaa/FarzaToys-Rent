@@ -2,7 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'package:intl/intl.dart';
 import '../app_store.dart';
-import '../main.dart';
+import '../widgets/custom_app_bar.dart'; 
 
 class DashboardScreen extends StatelessWidget {
   const DashboardScreen({super.key});
@@ -10,175 +10,155 @@ class DashboardScreen extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final store = context.watch<AppStore>();
-    final currFmt =
-        NumberFormat.currency(locale: 'id_ID', symbol: 'Rp ', decimalDigits: 0);
-    final totalRevenue =
-        store.rentals.fold<double>(0, (s, r) => s + r.totalPrice);
+    final currFmt = NumberFormat.currency(locale: 'id_ID', symbol: 'Rp ', decimalDigits: 0);
+    final todayRevenue = store.todayRevenue;
+
+    const scaffoldBg = Colors.white;
+    const textColor = Colors.black;
+    const borderColor = Colors.black;
 
     return Scaffold(
-      body: CustomScrollView(
-        slivers: [
-          const SliverAppBar.large(
-            title: Text('🚗 ToyCar Rental'),
-            backgroundColor: kPrimary,
-            foregroundColor: Colors.white,
-            expandedHeight: 140,
-          ),
-          SliverPadding(
-            padding: const EdgeInsets.all(16),
-            sliver: SliverList(
-              delegate: SliverChildListDelegate([
-                const Text('Ringkasan',
-                    style:
-                        TextStyle(fontSize: 20, fontWeight: FontWeight.bold)),
-                const SizedBox(height: 12),
-                Row(
-                  children: [
-                    Expanded(
-                        child: _StatCard(
-                            icon: Icons.directions_car,
-                            label: 'Total Mobil',
-                            value: store.cars.length.toString(),
-                            color: Colors.blue)),
-                    const SizedBox(width: 12),
-                    Expanded(
-                        child: _StatCard(
-                            icon: Icons.check_circle,
-                            label: 'Tersedia',
-                            value: store.availableCars.length.toString(),
-                            color: Colors.green)),
-                  ],
-                ),
-                const SizedBox(height: 12),
-                Row(
-                  children: [
-                    Expanded(
-                        child: _StatCard(
-                            icon: Icons.receipt_long,
-                            label: 'Aktif Disewa',
-                            value: store.activeRentals.length.toString(),
-                            color: Colors.orange)),
-                    const SizedBox(width: 12),
-                    Expanded(
-                        child: _StatCard(
-                            icon: Icons.attach_money,
-                            label: 'Total Pendapatan',
-                            value: currFmt.format(totalRevenue),
-                            color: kPrimary,
-                            small: true)),
-                  ],
-                ),
-                const SizedBox(height: 24),
-                const Text('Penyewaan Terbaru',
-                    style:
-                        TextStyle(fontSize: 20, fontWeight: FontWeight.bold)),
-                const SizedBox(height: 12),
-                if (store.rentals.isEmpty)
-                  const Center(
-                    child: Padding(
-                      padding: EdgeInsets.all(32),
-                      child: Text('Belum ada penyewaan',
-                          style: TextStyle(color: Colors.grey)),
-                    ),
-                  )
-                else
-                  ...store.rentals.reversed
-                      .take(5)
-                      .map((r) => _RecentRentalCard(rental: r)),
-              ]),
+      backgroundColor: scaffoldBg,
+      appBar: const CustomAppBar(title: 'Dasboard Rental', showLogout: true),
+      body: SingleChildScrollView(
+        padding: const EdgeInsets.all(20),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            const Text('RINGKASAN HARI INI', style: TextStyle(fontSize: 22, fontWeight: FontWeight.w900, color: textColor, letterSpacing: 1.0)),
+            const SizedBox(height: 16),
+            Row(
+              children: [
+                Expanded(child: _NeoStatCard(icon: Icons.directions_car, label: 'TOTAL MOBIL', value: store.cars.length.toString(), color: const Color(0xFF80DEEA))),
+                const SizedBox(width: 16),
+                Expanded(child: _NeoStatCard(icon: Icons.check_circle, label: 'TERSEDIA', value: store.availableCars.length.toString(), color: const Color(0xFFB9F6CA))),
+              ],
             ),
+            const SizedBox(height: 16),
+            Row(
+              children: [
+                Expanded(child: _NeoStatCard(icon: Icons.receipt_long, label: 'AKTIF DISEWA', value: store.activeRentals.length.toString(), color: const Color(0xFFFFD180))),
+                const SizedBox(width: 16),
+                Expanded(child: _NeoStatCard(icon: Icons.account_balance_wallet, label: 'PENDAPATAN', value: currFmt.format(todayRevenue), color: const Color(0xFFEA80FC))), 
+              ],
+            ),
+            const SizedBox(height: 32),
+            const Text('PENYEWAAN TERBARU', style: TextStyle(fontSize: 22, fontWeight: FontWeight.w900, color: textColor, letterSpacing: 1.0)),
+            const SizedBox(height: 16),
+            if (store.rentals.isEmpty)
+              Container(
+                width: double.infinity,
+                padding: const EdgeInsets.all(32),
+                decoration: BoxDecoration(
+                  color: Colors.grey.shade200,
+                  border: Border.all(color: borderColor, width: 3),
+                  borderRadius: BorderRadius.circular(12),
+                  boxShadow: const [BoxShadow(color: borderColor, offset: Offset(4, 4), blurRadius: 0)],
+                ),
+                child: const Center(child: Text('BELUM ADA PENYEWAAN', style: TextStyle(color: textColor, fontWeight: FontWeight.bold, fontSize: 16))),
+              )
+            else
+              ...store.rentals.take(5).map((r) => _NeoRecentRentalCard(rental: r)),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+class _NeoStatCard extends StatelessWidget {
+  final IconData icon; final String label; final String value; final Color color;
+  const _NeoStatCard({required this.icon, required this.label, required this.value, required this.color});
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      padding: const EdgeInsets.all(16),
+      decoration: BoxDecoration(
+        color: color, borderRadius: BorderRadius.circular(12), 
+        border: Border.all(color: Colors.black, width: 3), 
+        boxShadow: const [BoxShadow(color: Colors.black, offset: Offset(5, 5), blurRadius: 0)],
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Container(
+            padding: const EdgeInsets.all(6),
+            decoration: const BoxDecoration(color: Colors.white, shape: BoxShape.circle, border: Border.fromBorderSide(BorderSide(color: Colors.black, width: 2))), 
+            child: Icon(icon, color: Colors.black, size: 24),
           ),
+          const SizedBox(height: 12),
+          FittedBox(child: Text(value, style: const TextStyle(fontSize: 24, fontWeight: FontWeight.w900, color: Colors.black))),
+          Text(label, style: const TextStyle(color: Colors.black87, fontSize: 11, fontWeight: FontWeight.bold)),
         ],
       ),
     );
   }
 }
 
-class _StatCard extends StatelessWidget {
-  final IconData icon;
-  final String label;
-  final String value;
-  final Color color;
-  final bool small;
-  const _StatCard(
-      {required this.icon,
-      required this.label,
-      required this.value,
-      required this.color,
-      this.small = false});
-
-  @override
-  Widget build(BuildContext context) {
-    return Card(
-      child: Padding(
-        padding: const EdgeInsets.all(16),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Icon(icon, color: color, size: 28),
-            const SizedBox(height: 8),
-            Text(value,
-                style: TextStyle(
-                    fontSize: small ? 13 : 22, fontWeight: FontWeight.bold)),
-            Text(label,
-                style: const TextStyle(color: Colors.grey, fontSize: 12)),
-          ],
-        ),
-      ),
-    );
-  }
-}
-
-class _RecentRentalCard extends StatelessWidget {
+class _NeoRecentRentalCard extends StatelessWidget {
   final dynamic rental;
-  const _RecentRentalCard({required this.rental});
+  const _NeoRecentRentalCard({required this.rental});
 
   @override
   Widget build(BuildContext context) {
+    final store = context.watch<AppStore>();
+    final carData = store.getCarById(rental.carId);
+    final imageUrl = carData?.imageUrl;
+
     final timeFmt = DateFormat('HH:mm', 'id_ID');
     final dateFmt = DateFormat('dd MMM', 'id_ID');
-    final cfmt =
-        NumberFormat.currency(locale: 'id_ID', symbol: 'Rp ', decimalDigits: 0);
-    Color statusColor = rental.status == 'active'
-        ? Colors.orange
-        : rental.status == 'returned'
-            ? Colors.green
-            : Colors.red;
-    String statusText = rental.status == 'active'
-        ? 'Aktif'
-        : rental.status == 'returned'
-            ? 'Selesai'
-            : 'Dibatalkan';
+    final cfmt = NumberFormat.currency(locale: 'id_ID', symbol: 'Rp ', decimalDigits: 0);
+    
+    Color statusBgColor = rental.status == 'active' ? Colors.yellowAccent : rental.status == 'returned' ? Colors.greenAccent : Colors.redAccent;
+    String statusText = rental.status == 'active' ? 'AKTIF' : rental.status == 'returned' ? 'SELESAI' : 'BATAL';
 
-    return Card(
-      margin: const EdgeInsets.only(bottom: 8),
-      child: ListTile(
-        leading: CircleAvatar(
-          backgroundColor: kPrimaryLight.withValues(alpha: 0.3),
-          child: const Icon(Icons.directions_car, color: kPrimary),
-        ),
-        title: Text(rental.carName,
-            style: const TextStyle(fontWeight: FontWeight.bold)),
-        subtitle: Text(
-            '${rental.renterName} • ${dateFmt.format(rental.startTime)} ${timeFmt.format(rental.startTime)}–${timeFmt.format(rental.endTime)}'),
-        trailing: Column(
-          mainAxisAlignment: MainAxisAlignment.center,
-          crossAxisAlignment: CrossAxisAlignment.end,
-          children: [
-            Text(cfmt.format(rental.totalPrice),
-                style:
-                    const TextStyle(fontWeight: FontWeight.bold, fontSize: 12)),
-            Container(
-              padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
-              decoration: BoxDecoration(
-                color: statusColor.withValues(alpha: 0.15),
-                borderRadius: BorderRadius.circular(8),
-              ),
-              child: Text(statusText,
-                  style: TextStyle(color: statusColor, fontSize: 11)),
+    return Container(
+      margin: const EdgeInsets.only(bottom: 16),
+      padding: const EdgeInsets.all(16),
+      decoration: BoxDecoration(
+        color: Colors.white, borderRadius: BorderRadius.circular(12), 
+        border: Border.all(color: Colors.black, width: 3), 
+        boxShadow: const [BoxShadow(color: Colors.black, offset: Offset(4, 4), blurRadius: 0)],
+      ),
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.center,
+        children: [
+          Container(
+            width: 80, height: 60, 
+            decoration: BoxDecoration(color: Colors.white, border: Border.all(color: Colors.black, width: 2), borderRadius: BorderRadius.circular(8)),
+            child: ClipRRect(
+              borderRadius: BorderRadius.circular(6),
+              child: (imageUrl != null && imageUrl.trim().isNotEmpty)
+                  ? Image.network(imageUrl, fit: BoxFit.cover, width: 80, height: 60, errorBuilder: (ctx, err, stack) => const Center(child: Icon(Icons.broken_image, color: Colors.black)))
+                  : const Center(child: Icon(Icons.directions_car, color: Colors.black, size: 36)),
             ),
-          ],
-        ),
+          ),
+          const SizedBox(width: 16),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(rental.carName.toUpperCase(), style: const TextStyle(fontWeight: FontWeight.w900, color: Colors.black, fontSize: 16)),
+                const SizedBox(height: 4),
+                Text('${rental.renterName}\n${dateFmt.format(rental.startTime)} • ${timeFmt.format(rental.startTime)}–${timeFmt.format(rental.endTime)}', style: const TextStyle(color: Colors.black87, fontWeight: FontWeight.bold, fontSize: 12)),
+              ],
+            ),
+          ),
+          Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.end,
+            children: [
+              Text(cfmt.format(rental.totalPrice), style: const TextStyle(fontWeight: FontWeight.w900, fontSize: 14, color: Colors.black)),
+              const SizedBox(height: 8),
+              Container(
+                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                decoration: BoxDecoration(color: statusBgColor, border: Border.all(color: Colors.black, width: 2), borderRadius: BorderRadius.circular(6)),
+                child: Text(statusText, style: const TextStyle(color: Colors.black, fontSize: 10, fontWeight: FontWeight.w900)),
+              ),
+            ],
+          ),
+        ],
       ),
     );
   }

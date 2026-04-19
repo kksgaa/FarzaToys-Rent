@@ -1,13 +1,19 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:provider/provider.dart';
 import 'package:intl/intl.dart';
 import '../app_store.dart';
 import '../models/car.dart';
+import '../notification_service.dart';
+import '../widgets/custom_app_bar.dart';
 import '../main.dart';
 
 class RentalFormScreen extends StatefulWidget {
   final String? carId;
-  const RentalFormScreen({super.key, this.carId});
+  final String? initialName;
+  final String? queueId;
+
+  const RentalFormScreen({super.key, this.carId, this.initialName, this.queueId});
 
   @override
   State<RentalFormScreen> createState() => _RentalFormScreenState();
@@ -18,19 +24,21 @@ class _RentalFormScreenState extends State<RentalFormScreen> {
   final _nameCtrl = TextEditingController(text: '.');
   final _phoneCtrl = TextEditingController(text: '.');
   final _addressCtrl = TextEditingController(text: '.');
-  Car? _selectedCar;
+
+  String? _selectedCarId;
   int _durationMinutes = 15;
   bool _isSaving = false;
+  bool _isPaid = false;
 
   @override
   void initState() {
     super.initState();
-    WidgetsBinding.instance.addPostFrameCallback((_) {
-      if (widget.carId != null) {
-        final store = context.read<AppStore>();
-        setState(() => _selectedCar = store.getCarById(widget.carId!));
-      }
-    });
+    if (widget.initialName != null && widget.initialName != '.') {
+      _nameCtrl.text = widget.initialName!;
+    }
+    if (widget.carId != null) {
+      _selectedCarId = widget.carId;
+    }
   }
 
   @override
@@ -41,51 +49,89 @@ class _RentalFormScreenState extends State<RentalFormScreen> {
     super.dispose();
   }
 
-  double get _totalPrice => (_durationMinutes / 15) * Car.pricePerSession;
-  DateTime get _estimatedEnd =>
-      DateTime.now().add(Duration(minutes: _durationMinutes));
+  Car? _getSelectedCar(AppStore store) {
+    if (_selectedCarId == null) return null;
+    return store.getCarById(_selectedCarId!);
+  }
+
+  int _calculateTotalPrice(AppStore store) {
+    final car = _getSelectedCar(store);
+    if (_durationMinutes == 1 || car == null) return 0;
+    return (_durationMinutes ~/ 15) * car.pricePer15Mins;
+  }
+
+  DateTime get _estimatedEnd => DateTime.now().add(Duration(minutes: _durationMinutes));
 
   Future<void> _save() async {
     if (!_formKey.currentState!.validate()) return;
-    if (_selectedCar == null) {
-      showSnackBarWithOK('Pilih mobil terlebih dahulu');
+
+    final store = context.read<AppStore>();
+    final selectedCar = _getSelectedCar(store);
+
+    if (selectedCar == null) {
+      showSnackBarWithOK('Pilih mobil terlebih dahulu', backgroundColor: const Color(0xFFFFD180));
       return;
     }
+
     setState(() => _isSaving = true);
-    final store = context.read<AppStore>();
-    final navigator = Navigator.of(context);
-    final carId = widget.carId;
+
     try {
+      String namaPenyewa = _nameCtrl.text.trim().isEmpty || _nameCtrl.text.trim() == '.' ? 'Penyewa' : _nameCtrl.text.trim();
+
       await store.addRental(
-        car: _selectedCar!,
+        car: selectedCar,
         renterName: _nameCtrl.text.trim().isEmpty ? '.' : _nameCtrl.text.trim(),
-        renterPhone:
-            _phoneCtrl.text.trim().isEmpty ? '.' : _phoneCtrl.text.trim(),
-        renterAddress:
-            _addressCtrl.text.trim().isEmpty ? '.' : _addressCtrl.text.trim(),
+        renterPhone: _phoneCtrl.text.trim().isEmpty ? '.' : _phoneCtrl.text.trim(),
+        renterAddress: _addressCtrl.text.trim().isEmpty ? '.' : _addressCtrl.text.trim(),
         durationMinutes: _durationMinutes,
+        isPaid: _isPaid,
       );
-      navigator.pop();
-      if (carId != null) navigator.pop();
-      showSnackBarWithOK('Penyewaan berhasil dibuat!',
-          backgroundColor: Colors.green);
-    } catch (_) {
-      showSnackBarWithOK('Gagal membuat penyewaan',
-          backgroundColor: Colors.red);
+
+      if (widget.queueId != null) {
+        await store.removeQueue(widget.queueId!);
+      }
+
+      int alarmSeconds = _durationMinutes * 60;
+      await NotificationService.scheduleNotification(
+        id: selectedCar.id.hashCode,
+        title: 'WAKTU HABIS! ⏰',
+        body: 'Unit ${selectedCar.name} atas nama $namaPenyewa sudah selesai.',
+        seconds: alarmSeconds,
+      );
+
+      if (mounted) {
+        Navigator.pop(context);
+        showSnackBarWithOK('Penyewaan berhasil!');
+      }
+    } catch (e) {
+      showSnackBarWithOK('Gagal: $e', backgroundColor: const Color(0xFFFF8A80));
     } finally {
       if (mounted) setState(() => _isSaving = false);
     }
   }
 
+  InputDecoration _neoInputDecoration(String hint, IconData icon) {
+    return InputDecoration(
+      hintText: hint,
+      hintStyle: const TextStyle(fontWeight: FontWeight.bold, color: Colors.black38),
+      prefixIcon: Icon(icon, color: Colors.black),
+      filled: true,
+      fillColor: Colors.white,
+      border: OutlineInputBorder(borderRadius: BorderRadius.circular(8), borderSide: const BorderSide(color: Colors.black, width: 2)),
+      enabledBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(8), borderSide: const BorderSide(color: Colors.black, width: 2)),
+      focusedBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(8), borderSide: const BorderSide(color: Colors.black, width: 3)),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     final store = context.watch<AppStore>();
-    final currFmt =
-        NumberFormat.currency(locale: 'id_ID', symbol: 'Rp ', decimalDigits: 0);
+    final currFmt = NumberFormat.currency(locale: 'id_ID', symbol: 'Rp ', decimalDigits: 0);
     final timeFmt = DateFormat('HH:mm', 'id_ID');
 
     return Scaffold(
-      appBar: AppBar(title: const Text('Form Penyewaan')),
+      backgroundColor: Colors.white,
+      appBar: const CustomAppBar(title: 'FORM PENYEWAAN'),
       body: SingleChildScrollView(
         padding: const EdgeInsets.all(20),
         child: Form(
@@ -93,286 +139,62 @@ class _RentalFormScreenState extends State<RentalFormScreen> {
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              // ── Info default ─────────────────────────────────────────
-              Container(
-                width: double.infinity,
-                padding:
-                    const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
-                decoration: BoxDecoration(
-                  color: Colors.amber.shade50,
-                  borderRadius: BorderRadius.circular(10),
-                  border: Border.all(color: Colors.amber.shade300),
-                ),
-                child: const Row(
-                  children: [
-                    Icon(Icons.info_outline, color: Colors.amber, size: 18),
-                    SizedBox(width: 8),
-                    Expanded(
-                      child: Text(
-                        'Data penyewa diisi "." secara default. Isi jika sempat.',
-                        style: TextStyle(fontSize: 12, color: Colors.black87),
-                      ),
-                    ),
-                  ],
-                ),
-              ),
-              const SizedBox(height: 16),
-
-              // ── Pilih Mobil ──────────────────────────────────────────
-              _label('Pilih Mobil *'),
-              if (widget.carId != null && _selectedCar != null)
-                Container(
-                  width: double.infinity,
-                  padding: const EdgeInsets.all(16),
-                  decoration: BoxDecoration(
-                    color: kPrimaryLight.withValues(alpha: 0.15),
-                    borderRadius: BorderRadius.circular(12),
-                  ),
-                  child: Row(
-                    children: [
-                      const Icon(Icons.directions_car, color: kPrimary),
-                      const SizedBox(width: 12),
-                      Expanded(
-                        child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            Text(_selectedCar!.name,
-                                style: const TextStyle(
-                                    fontWeight: FontWeight.bold, fontSize: 15)),
-                            Text('Warna: ${_selectedCar!.color}',
-                                style: const TextStyle(
-                                    color: Colors.grey, fontSize: 13)),
-                          ],
-                        ),
-                      ),
-                    ],
-                  ),
-                )
-              else
-                DropdownButtonFormField<Car>(
-                  decoration: const InputDecoration(
-                      hintText: 'Pilih mobil yang tersedia'),
-                  items: store.availableCars
-                      .map((car) => DropdownMenuItem(
-                            value: car,
-                            child: Text('${car.name} (${car.color})'),
-                          ))
-                      .toList(),
-                  onChanged: (car) => setState(() => _selectedCar = car),
-                  validator: (v) =>
-                      v == null ? 'Pilih mobil terlebih dahulu' : null,
-                ),
-              const SizedBox(height: 16),
-
-              // ── Nama Penyewa ─────────────────────────────────────────
-              _label('Nama Penyewa'),
+              _buildInfoDefault(),
+              const SizedBox(height: 24),
+              _label('PILIH MOBIL *'),
+              _buildCarSelector(store),
+              const SizedBox(height: 20),
+              _label('NAMA PENYEWA'),
               TextFormField(
                 controller: _nameCtrl,
-                decoration: const InputDecoration(
-                    hintText: 'Nama lengkap (opsional)',
-                    prefixIcon: Icon(Icons.person)),
+                style: const TextStyle(fontWeight: FontWeight.w900, color: Colors.black),
+                inputFormatters: [FilteringTextInputFormatter.allow(RegExp(r'[a-zA-Z\s\.]'))],
+                decoration: _neoInputDecoration('Nama lengkap (opsional)', Icons.person),
               ),
-              const SizedBox(height: 16),
-
-              // ── No. Telepon ──────────────────────────────────────────
-              _label('No. Telepon'),
+              const SizedBox(height: 20),
+              _label('NO. TELEPON'),
               TextFormField(
                 controller: _phoneCtrl,
                 keyboardType: TextInputType.phone,
-                decoration: const InputDecoration(
-                    hintText: '08xxxxxxxxxx (opsional)',
-                    prefixIcon: Icon(Icons.phone)),
+                style: const TextStyle(fontWeight: FontWeight.w900, color: Colors.black),
+                decoration: _neoInputDecoration('08xxxxxxxxxx (opsional)', Icons.phone),
               ),
-              const SizedBox(height: 16),
-
-              // ── Alamat ───────────────────────────────────────────────
-              _label('Alamat'),
+              const SizedBox(height: 20),
+              _label('DESKRIPSI ANAK'),
               TextFormField(
                 controller: _addressCtrl,
                 maxLines: 2,
-                decoration: const InputDecoration(
-                    hintText: 'Alamat penyewa (opsional)',
-                    prefixIcon: Icon(Icons.location_on)),
+                style: const TextStyle(fontWeight: FontWeight.w900, color: Colors.black),
+                decoration: _neoInputDecoration('Ciri-ciri anak (Cth: Baju merah)', Icons.child_care),
               ),
-              const SizedBox(height: 20),
-
-              // ── Durasi ───────────────────────────────────────────────
-              _label('Durasi Penyewaan'),
-              Card(
-                elevation: 0,
-                color: kPrimaryLight.withValues(alpha: 0.1),
-                child: Padding(
-                  padding: const EdgeInsets.all(16),
-                  child: Column(
-                    children: [
-                      Wrap(
-                        spacing: 8,
-                        runSpacing: 8,
-                        children: [15, 30, 45, 60, 90, 120].map((min) {
-                          final selected = _durationMinutes == min;
-                          return GestureDetector(
-                            onTap: () => setState(() => _durationMinutes = min),
-                            child: Container(
-                              padding: const EdgeInsets.symmetric(
-                                  horizontal: 14, vertical: 8),
-                              decoration: BoxDecoration(
-                                color: selected ? kPrimary : Colors.white,
-                                borderRadius: BorderRadius.circular(20),
-                                border: Border.all(
-                                    color: selected
-                                        ? kPrimary
-                                        : Colors.grey.shade300),
-                              ),
-                              child: Text(
-                                min < 60
-                                    ? '${min}m'
-                                    : '${min ~/ 60}j${min % 60 > 0 ? ' ${min % 60}m' : ''}',
-                                style: TextStyle(
-                                  color:
-                                      selected ? Colors.white : Colors.black87,
-                                  fontWeight: FontWeight.bold,
-                                  fontSize: 13,
-                                ),
-                              ),
-                            ),
-                          );
-                        }).toList(),
-                      ),
-                      const SizedBox(height: 16),
-                      Row(
-                        children: [
-                          const Icon(Icons.access_time,
-                              color: kPrimary, size: 18),
-                          const SizedBox(width: 8),
-                          Expanded(
-                            child: Slider(
-                              value: _durationMinutes.toDouble(),
-                              min: 15,
-                              max: 180,
-                              divisions: 11,
-                              activeColor: kPrimary,
-                              label: '$_durationMinutes menit',
-                              onChanged: (v) =>
-                                  setState(() => _durationMinutes = v.toInt()),
-                            ),
-                          ),
-                          Container(
-                            padding: const EdgeInsets.symmetric(
-                                horizontal: 10, vertical: 4),
-                            decoration: BoxDecoration(
-                                color: kPrimary,
-                                borderRadius: BorderRadius.circular(8)),
-                            child: Text(
-                              '$_durationMinutes m',
-                              style: const TextStyle(
-                                  color: Colors.white,
-                                  fontWeight: FontWeight.bold,
-                                  fontSize: 13),
-                            ),
-                          ),
-                        ],
-                      ),
-                    ],
-                  ),
-                ),
-              ),
-              const SizedBox(height: 20),
-
-              // ── Info Waktu ───────────────────────────────────────────
+              const SizedBox(height: 24),
+              _label('STATUS PEMBAYARAN'),
               Container(
-                width: double.infinity,
-                padding: const EdgeInsets.all(16),
                 decoration: BoxDecoration(
-                  color: Colors.blue.shade50,
-                  borderRadius: BorderRadius.circular(12),
-                  border: Border.all(color: Colors.blue.shade200),
-                ),
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Row(children: [
-                      const Icon(Icons.play_circle,
-                          color: Colors.green, size: 18),
-                      const SizedBox(width: 8),
-                      Text('Mulai: ${timeFmt.format(DateTime.now())}',
-                          style: const TextStyle(fontWeight: FontWeight.w500)),
-                    ]),
-                    const SizedBox(height: 6),
-                    Row(children: [
-                      const Icon(Icons.stop_circle,
-                          color: Colors.red, size: 18),
-                      const SizedBox(width: 8),
-                      Text('Selesai: ${timeFmt.format(_estimatedEnd)}',
-                          style: const TextStyle(fontWeight: FontWeight.w500)),
-                    ]),
-                    const SizedBox(height: 6),
-                    Row(children: [
-                      const Icon(Icons.schedule, color: Colors.blue, size: 18),
-                      const SizedBox(width: 8),
-                      Text('Durasi: $_durationMinutes menit',
-                          style: const TextStyle(fontWeight: FontWeight.w500)),
-                    ]),
-                  ],
-                ),
-              ),
-              const SizedBox(height: 16),
-
-              // ── Total Biaya ──────────────────────────────────────────
-              Container(
-                width: double.infinity,
-                padding: const EdgeInsets.all(20),
-                decoration: BoxDecoration(
-                  gradient:
-                      const LinearGradient(colors: [kPrimaryDark, kAccent]),
-                  borderRadius: BorderRadius.circular(16),
-                ),
-                child: Column(
-                  children: [
-                    const Text('Total Biaya',
-                        style: TextStyle(color: Colors.white70, fontSize: 14)),
-                    const SizedBox(height: 4),
-                    Text(
-                      currFmt.format(_totalPrice),
-                      style: const TextStyle(
-                          color: Colors.white,
-                          fontSize: 30,
-                          fontWeight: FontWeight.bold),
-                    ),
-                    Text(
-                      '${_durationMinutes ~/ 15} sesi × ${currFmt.format(20000)}',
-                      style:
-                          const TextStyle(color: Colors.white70, fontSize: 13),
-                    ),
-                  ],
+                    color: _isPaid ? const Color(0xFFB9F6CA) : const Color(0xFFFF8A80),
+                    borderRadius: BorderRadius.circular(12),
+                    border: Border.all(color: Colors.black, width: 3),
+                    boxShadow: const [BoxShadow(color: Colors.black, offset: Offset(4, 4), blurRadius: 0)]),
+                child: SwitchListTile(
+                  title: const Text('SUDAH BAYAR?', style: TextStyle(fontWeight: FontWeight.w900, color: Colors.black)),
+                  subtitle: Text(_isPaid ? 'PEMBAYARAN LUNAS' : 'BAYAR NANTI (HUTANG)', style: const TextStyle(fontWeight: FontWeight.bold, color: Colors.black87, fontSize: 12)),
+                  value: _isPaid,
+                  activeThumbColor: Colors.white,
+                  activeTrackColor: Colors.black,
+                  onChanged: (val) => setState(() => _isPaid = val),
+                  secondary: Icon(_isPaid ? Icons.check_circle : Icons.warning_amber_rounded, color: Colors.black, size: 30),
                 ),
               ),
               const SizedBox(height: 24),
-
-              // ── Tombol Konfirmasi ────────────────────────────────────
-              SizedBox(
-                width: double.infinity,
-                height: 56,
-                child: ElevatedButton.icon(
-                  onPressed: _isSaving ? null : _save,
-                  icon: _isSaving
-                      ? const SizedBox(
-                          width: 20,
-                          height: 20,
-                          child: CircularProgressIndicator(
-                              strokeWidth: 2, color: Colors.white))
-                      : const Icon(Icons.check, size: 22),
-                  label: const Text('Konfirmasi Penyewaan',
-                      style:
-                          TextStyle(fontSize: 17, fontWeight: FontWeight.bold)),
-                  style: ElevatedButton.styleFrom(
-                    backgroundColor: Colors.green,
-                    foregroundColor: Colors.white,
-                    shape: RoundedRectangleBorder(
-                        borderRadius: BorderRadius.circular(12)),
-                  ),
-                ),
-              ),
-              const SizedBox(height: 8),
+              _label('DURASI PENYEWAAN'),
+              _buildDurationPicker(),
+              const SizedBox(height: 24),
+              _buildTimeSummary(timeFmt),
+              const SizedBox(height: 24),
+              _buildPriceCard(currFmt, store),
+              const SizedBox(height: 32),
+              _buildSubmitButton(),
+              const SizedBox(height: 20),
             ],
           ),
         ),
@@ -380,9 +202,130 @@ class _RentalFormScreenState extends State<RentalFormScreen> {
     );
   }
 
-  Widget _label(String text) => Padding(
-        padding: const EdgeInsets.only(bottom: 8),
-        child: Text(text,
-            style: const TextStyle(fontWeight: FontWeight.w600, fontSize: 14)),
+  Widget _buildInfoDefault() {
+    return Container(
+      width: double.infinity,
+      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+      decoration: BoxDecoration(color: const Color(0xFFFFF59D), borderRadius: BorderRadius.circular(8), border: Border.all(color: Colors.black, width: 2)),
+      child: const Row(
+        children: [
+          Icon(Icons.info_outline, color: Colors.black, size: 24), SizedBox(width: 12),
+          Expanded(child: Text('Data penyewa otomatis diisi "." jika kosong.', style: TextStyle(fontSize: 12, fontWeight: FontWeight.w900, color: Colors.black))),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildCarSelector(AppStore store) {
+    List<Car> carList = List.from(store.availableCars);
+    if (_selectedCarId != null && !carList.any((c) => c.id == _selectedCarId)) {
+      Car? targetedCar = store.getCarById(_selectedCarId!);
+      if (targetedCar != null) carList.add(targetedCar);
+    }
+    return DropdownButtonFormField<String?>(
+      value: _selectedCarId,
+      isExpanded: true, dropdownColor: Colors.white,
+      style: const TextStyle(fontWeight: FontWeight.w900, color: Colors.black, fontSize: 16),
+      hint: const Text('Pilih mobil...', style: TextStyle(color: Colors.black54, fontWeight: FontWeight.w900)),
+      decoration: InputDecoration(
+        filled: true, fillColor: Colors.white,
+        border: OutlineInputBorder(borderRadius: BorderRadius.circular(8), borderSide: const BorderSide(color: Colors.black, width: 2)),
+        enabledBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(8), borderSide: const BorderSide(color: Colors.black, width: 2)),
+      ),
+      items: carList.map((car) => DropdownMenuItem<String?>(
+                value: car.id,
+                child: Text('${car.name.toUpperCase()} ${!car.isAvailable ? "(DISEWA)" : ""}', style: TextStyle(color: car.isAvailable ? Colors.black : Colors.red), overflow: TextOverflow.ellipsis),
+              )).toList(),
+      onChanged: (val) => setState(() => _selectedCarId = val),
+      validator: (v) => v == null ? 'Pilih mobil dahulu' : null,
+    );
+  }
+
+  Widget _buildDurationPicker() => Container(
+        width: double.infinity,
+        padding: const EdgeInsets.all(16),
+        decoration: BoxDecoration(
+            color: const Color(0xFFE0E0E0), borderRadius: BorderRadius.circular(12),
+            border: Border.all(color: Colors.black, width: 3),
+            boxShadow: const [BoxShadow(color: Colors.black, offset: Offset(4, 4), blurRadius: 0)]),
+        child: Column(
+          children: [
+            Wrap(
+              spacing: 8, runSpacing: 8,
+              children: [1, 15, 30, 45, 60, 90, 120].map((min) {
+                final selected = _durationMinutes == min;
+                return InkWell(
+                  onTap: () => setState(() => _durationMinutes = min),
+                  child: Container(
+                    padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                    decoration: BoxDecoration(
+                        color: selected ? (min == 1 ? const Color(0xFFFF8A80) : const Color(0xFF80DEEA)) : Colors.white,
+                        border: Border.all(color: Colors.black, width: 2), borderRadius: BorderRadius.circular(8)),
+                    child: Text(min == 1 ? '1M (TES)' : (min < 60 ? '${min}M' : '${min ~/ 60}J${min % 60 > 0 ? ' ${min % 60}M' : ''}'), style: const TextStyle(fontWeight: FontWeight.w900, color: Colors.black)),
+                  ),
+                );
+              }).toList(),
+            ),
+            const SizedBox(height: 16),
+            SliderTheme(
+              data: const SliderThemeData(activeTrackColor: Colors.black, thumbColor: Color(0xFFEA80FC), trackHeight: 6), 
+              child: Slider(
+                value: _durationMinutes < 15 ? 15.0 : _durationMinutes.toDouble(),
+                min: 15, max: 180, divisions: 11, label: '$_durationMinutes Menit',
+                onChanged: (v) => setState(() => _durationMinutes = v.toInt()),
+              ),
+            ),
+          ],
+        ),
       );
+
+  Widget _buildTimeSummary(DateFormat timeFmt) {
+    return Container(
+      width: double.infinity, padding: const EdgeInsets.all(16),
+      decoration: BoxDecoration(color: const Color(0xFF80DEEA), borderRadius: BorderRadius.circular(12), border: Border.all(color: Colors.black, width: 3), boxShadow: const [BoxShadow(color: Colors.black, offset: Offset(4, 4), blurRadius: 0)]),
+      child: Column(
+        children: [
+          Row(children: [const Icon(Icons.play_circle, color: Colors.black), const SizedBox(width: 8), Text('MULAI: ${timeFmt.format(DateTime.now())}', style: const TextStyle(fontWeight: FontWeight.w900, color: Colors.black))]),
+          const SizedBox(height: 8),
+          Row(children: [const Icon(Icons.stop_circle, color: Colors.black), const SizedBox(width: 8), Text('SELESAI: ${timeFmt.format(_estimatedEnd)}', style: const TextStyle(fontWeight: FontWeight.w900, color: Colors.black))]),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildPriceCard(NumberFormat currFmt, AppStore store) {
+    final car = _getSelectedCar(store);
+    return Container(
+      width: double.infinity, padding: const EdgeInsets.all(24),
+      decoration: BoxDecoration(color: const Color(0xFFEA80FC), borderRadius: BorderRadius.circular(16), border: Border.all(color: Colors.black, width: 4), boxShadow: const [BoxShadow(color: Colors.black, offset: Offset(6, 6), blurRadius: 0)]),
+      child: Column(
+        children: [
+          const Text('TOTAL BIAYA', style: TextStyle(color: Colors.black, fontWeight: FontWeight.w900, fontSize: 14)),
+          Text(currFmt.format(_calculateTotalPrice(store)), style: const TextStyle(color: Colors.black, fontSize: 36, fontWeight: FontWeight.w900)),
+          Text('${_durationMinutes == 1 ? 0 : _durationMinutes ~/ 15} SESI × ${currFmt.format(car?.pricePer15Mins ?? 20000)}', style: const TextStyle(color: Colors.black87, fontWeight: FontWeight.bold)),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildSubmitButton() => InkWell(
+        onTap: _isSaving ? null : _save,
+        child: Container(
+          width: double.infinity, height: 64,
+          decoration: BoxDecoration(
+              color: _isSaving ? Colors.grey : const Color(0xFFB9F6CA), borderRadius: BorderRadius.circular(12),
+              border: Border.all(color: Colors.black, width: 3),
+              boxShadow: _isSaving ? null : const [BoxShadow(color: Colors.black, offset: Offset(5, 5), blurRadius: 0)]),
+          child: Row(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              if (_isSaving) const SizedBox(width: 24, height: 24, child: CircularProgressIndicator(color: Colors.black)) else const Icon(Icons.check_circle, color: Colors.black, size: 28),
+              const SizedBox(width: 12),
+              const Text('KONFIRMASI SEWA', style: TextStyle(fontSize: 18, fontWeight: FontWeight.w900, color: Colors.black)),
+            ],
+          ),
+        ),
+      );
+
+  Widget _label(String text) => Padding(padding: const EdgeInsets.only(bottom: 8), child: Text(text, style: const TextStyle(fontWeight: FontWeight.w900, fontSize: 14, color: Colors.black87)));
 }

@@ -2,7 +2,6 @@ import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'package:intl/intl.dart';
 import '../app_store.dart';
-import '../main.dart';
 import 'car_form_screen.dart';
 import 'rental_form_screen.dart';
 
@@ -13,27 +12,37 @@ class CarDetailScreen extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final store = context.watch<AppStore>();
-    final car   = store.getCarById(carId);
+    final car = store.getCarById(carId);
+
     if (car == null) {
       return Scaffold(
-        appBar: AppBar(title: const Text('Detail Mobil')),
-        body: const Center(child: Text('Mobil tidak ditemukan')),
+        backgroundColor: Colors.white,
+        appBar: AppBar(
+          title: const Text('DETAIL MOBIL', style: TextStyle(fontWeight: FontWeight.w900, color: Colors.black)),
+          backgroundColor: const Color(0xFFFFEB3B),
+          iconTheme: const IconThemeData(color: Colors.black),
+          bottom: PreferredSize(preferredSize: const Size.fromHeight(4.0), child: Container(color: Colors.black, height: 4.0)),
+        ),
+        body: const Center(child: Text('Mobil tidak ditemukan', style: TextStyle(fontWeight: FontWeight.bold, color: Colors.black))),
       );
     }
-    final cfmt       = NumberFormat.currency(locale: 'id_ID', symbol: 'Rp ', decimalDigits: 0);
-    final timeFmt    = DateFormat('HH:mm', 'id_ID');
+    
+    final cfmt = NumberFormat.currency(locale: 'id_ID', symbol: 'Rp ', decimalDigits: 0);
+    final timeFmt = DateFormat('HH:mm', 'id_ID');
     final carRentals = store.rentals.where((r) => r.carId == carId).toList();
 
     return Scaffold(
+      backgroundColor: Colors.white,
       appBar: AppBar(
-        title: Text(car.name),
+        title: Text(car.name.toUpperCase(), style: const TextStyle(fontWeight: FontWeight.w900, color: Colors.black, letterSpacing: 1.0)),
+        backgroundColor: const Color(0xFFFFEB3B),
+        elevation: 0,
+        iconTheme: const IconThemeData(color: Colors.black),
+        bottom: PreferredSize(preferredSize: const Size.fromHeight(4.0), child: Container(color: Colors.black, height: 4.0)),
         actions: [
           IconButton(
-            icon: const Icon(Icons.edit),
-            onPressed: () => Navigator.push(
-              context,
-              MaterialPageRoute(builder: (_) => CarFormScreen(car: car)),
-            ),
+            icon: const Icon(Icons.edit, color: Colors.black),
+            onPressed: () => Navigator.push(context, MaterialPageRoute(builder: (_) => CarFormScreen(car: car))),
           ),
         ],
       ),
@@ -44,64 +53,83 @@ class CarDetailScreen extends StatelessWidget {
           children: [
             Center(
               child: Container(
-                width: 120, height: 120,
+                width: 140, height: 140,
                 decoration: BoxDecoration(
-                  color: kPrimaryLight.withValues(alpha: 0.25),
-                  borderRadius: BorderRadius.circular(24),
+                  color: Colors.white, borderRadius: BorderRadius.circular(16),
+                  border: Border.all(color: Colors.black, width: 4),
+                  boxShadow: const [BoxShadow(color: Colors.black, offset: Offset(6, 6), blurRadius: 0)],
                 ),
-                child: const Icon(Icons.directions_car, color: kPrimary, size: 72),
-              ),
-            ),
-            const SizedBox(height: 16),
-            Center(
-              child: Container(
-                padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 6),
-                decoration: BoxDecoration(
-                  color: car.isAvailable ? Colors.green.shade50 : Colors.orange.shade50,
-                  borderRadius: BorderRadius.circular(20),
-                ),
-                child: Text(
-                  car.isAvailable ? '✓ Tersedia untuk Disewa' : '⚠ Sedang Disewa',
-                  style: TextStyle(
-                      color: car.isAvailable ? Colors.green : Colors.orange,
-                      fontWeight: FontWeight.bold),
+                child: ClipRRect(
+                  borderRadius: BorderRadius.circular(12),
+                  child: (car.imageUrl != null && car.imageUrl!.trim().isNotEmpty)
+                      ? Image.network(car.imageUrl!, fit: BoxFit.cover, errorBuilder: (context, error, stackTrace) => const Icon(Icons.broken_image, color: Colors.black, size: 60))
+                      : const Icon(Icons.directions_car, color: Colors.black, size: 80),
                 ),
               ),
             ),
             const SizedBox(height: 24),
-            Card(
-              child: Padding(
-                padding: const EdgeInsets.all(20),
-                child: Column(
-                  children: [
-                    _InfoRow(icon: Icons.label,        label: 'Nama',        value: car.name),
-                    _InfoRow(icon: Icons.palette,      label: 'Warna',       value: car.color),
-                    _InfoRow(icon: Icons.attach_money, label: 'Harga',       value: '${cfmt.format(20000)} / 15 menit'),
-                    if (car.note.isNotEmpty)
-                      _InfoRow(icon: Icons.notes,     label: 'Keterangan',  value: car.note),
-                  ],
+            Center(
+              child: Container(
+                padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 8),
+                decoration: BoxDecoration(
+                  color: car.isAvailable ? const Color(0xFFB9F6CA) : const Color(0xFFFFD180),
+                  borderRadius: BorderRadius.circular(12),
+                  border: Border.all(color: Colors.black, width: 3),
+                  boxShadow: const [BoxShadow(color: Colors.black, offset: Offset(4, 4), blurRadius: 0)],
+                ),
+                child: Text(
+                  car.isAvailable ? 'TERSEDIA UNTUK DISEWA' : 'SEDANG DISEWA',
+                  style: const TextStyle(color: Colors.black, fontWeight: FontWeight.w900, letterSpacing: 1.0),
                 ),
               ),
             ),
-            const SizedBox(height: 20),
-            Text('Riwayat Penyewaan (${carRentals.length})',
-                style: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
-            const SizedBox(height: 12),
+            const SizedBox(height: 32),
+            Container(
+              width: double.infinity, padding: const EdgeInsets.all(20),
+              decoration: BoxDecoration(
+                color: const Color(0xFFFFF59D), borderRadius: BorderRadius.circular(12),
+                border: Border.all(color: Colors.black, width: 3),
+                boxShadow: const [BoxShadow(color: Colors.black, offset: Offset(6, 6), blurRadius: 0)],
+              ),
+              child: Column(
+                children: [
+                  _InfoRow(icon: Icons.label, label: 'NAMA', value: car.name.toUpperCase()),
+                  _InfoRow(icon: Icons.palette, label: 'WARNA', value: car.color.toUpperCase()),
+                  _InfoRow(icon: Icons.attach_money, label: 'HARGA', value: '${cfmt.format(car.pricePer15Mins)} / 15 MNT'),
+                  if (car.note.isNotEmpty) _InfoRow(icon: Icons.notes, label: 'INFO', value: car.note.toUpperCase()),
+                ],
+              ),
+            ),
+            const SizedBox(height: 32),
+            Text('RIWAYAT PENYEWAAN (${carRentals.length})', style: const TextStyle(fontSize: 20, fontWeight: FontWeight.w900, color: Colors.black)),
+            const SizedBox(height: 16),
             if (carRentals.isEmpty)
-              const Center(
-                  child: Text('Belum pernah disewa',
-                      style: TextStyle(color: Colors.grey)))
+              Container(
+                width: double.infinity, padding: const EdgeInsets.all(20),
+                decoration: BoxDecoration(
+                  color: Colors.grey.shade200, borderRadius: BorderRadius.circular(12),
+                  border: Border.all(color: Colors.black, width: 3),
+                  boxShadow: const [BoxShadow(color: Colors.black, offset: Offset(4, 4), blurRadius: 0)],
+                ),
+                child: const Center(child: Text('BELUM PERNAH DISEWA', style: TextStyle(color: Colors.black, fontWeight: FontWeight.w900))),
+              )
             else
-              ...carRentals.map((r) => Card(
-                    margin: const EdgeInsets.only(bottom: 8),
+              ...carRentals.reversed.map((r) => Container(
+                    margin: const EdgeInsets.only(bottom: 12),
+                    decoration: BoxDecoration(
+                      color: Colors.white, borderRadius: BorderRadius.circular(12),
+                      border: Border.all(color: Colors.black, width: 3),
+                      boxShadow: const [BoxShadow(color: Colors.black, offset: Offset(4, 4), blurRadius: 0)],
+                    ),
                     child: ListTile(
-                      leading: const Icon(Icons.person, color: kPrimary),
-                      title: Text(r.renterName),
-                      subtitle: Text(
-                          '${r.durationMinutes} menit • ${timeFmt.format(r.startTime)}–${timeFmt.format(r.endTime)}'),
-                      trailing: Text(cfmt.format(r.totalPrice),
-                          style: const TextStyle(
-                              fontWeight: FontWeight.bold, color: kPrimary)),
+                      leading: Container(
+                        padding: const EdgeInsets.all(6),
+                        decoration: BoxDecoration(color: const Color(0xFFEA80FC), shape: BoxShape.circle, border: Border.all(color: Colors.black, width: 2)),
+                        child: const Icon(Icons.person, color: Colors.black, size: 20),
+                      ),
+                      title: Text(r.renterName.toUpperCase(), style: const TextStyle(fontWeight: FontWeight.w900, color: Colors.black)),
+                      subtitle: Text('${r.durationMinutes} MNT • ${timeFmt.format(r.startTime)}–${timeFmt.format(r.endTime)}', style: const TextStyle(fontWeight: FontWeight.bold, color: Colors.black87)),
+                      trailing: Text(cfmt.format(r.totalPrice), style: const TextStyle(fontWeight: FontWeight.w900, fontSize: 16, color: Colors.black)),
                     ),
                   )),
           ],
@@ -109,22 +137,24 @@ class CarDetailScreen extends StatelessWidget {
       ),
       bottomNavigationBar: car.isAvailable
           ? Padding(
-              padding: const EdgeInsets.all(16),
-              child: ElevatedButton.icon(
-                onPressed: () => Navigator.push(
-                  context,
-                  MaterialPageRoute(
-                      builder: (_) => RentalFormScreen(carId: carId)),
-                ),
-                icon: const Icon(Icons.receipt_long),
-                label: const Text('Sewakan Mobil Ini',
-                    style: TextStyle(fontSize: 16)),
-                style: ElevatedButton.styleFrom(
-                  backgroundColor: Colors.green,
-                  foregroundColor: Colors.white,
-                  minimumSize: const Size(double.infinity, 52),
-                  shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(12)),
+              padding: const EdgeInsets.all(20),
+              child: InkWell(
+                onTap: () => Navigator.push(context, MaterialPageRoute(builder: (_) => RentalFormScreen(carId: carId))),
+                child: Container(
+                  width: double.infinity, height: 56,
+                  decoration: BoxDecoration(
+                    color: const Color(0xFFB9F6CA), borderRadius: BorderRadius.circular(12),
+                    border: Border.all(color: Colors.black, width: 3),
+                    boxShadow: const [BoxShadow(color: Colors.black, offset: Offset(4, 4), blurRadius: 0)],
+                  ),
+                  child: const Row(
+                    mainAxisAlignment: MainAxisAlignment.center,
+                    children: [
+                      Icon(Icons.receipt_long, color: Colors.black),
+                      SizedBox(width: 8),
+                      Text('SEWAKAN MOBIL INI', style: TextStyle(fontSize: 16, fontWeight: FontWeight.w900, color: Colors.black, letterSpacing: 1.0)),
+                    ],
+                  ),
                 ),
               ),
             )
@@ -134,9 +164,7 @@ class CarDetailScreen extends StatelessWidget {
 }
 
 class _InfoRow extends StatelessWidget {
-  final IconData icon;
-  final String label;
-  final String value;
+  final IconData icon; final String label; final String value;
   const _InfoRow({required this.icon, required this.label, required this.value});
 
   @override
@@ -146,14 +174,14 @@ class _InfoRow extends StatelessWidget {
       child: Row(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Icon(icon, color: kPrimary, size: 20),
+          Container(
+            padding: const EdgeInsets.all(4),
+            decoration: BoxDecoration(color: Colors.white, borderRadius: BorderRadius.circular(4), border: Border.all(color: Colors.black, width: 2)),
+            child: Icon(icon, color: Colors.black, size: 16),
+          ),
           const SizedBox(width: 12),
-          Text('$label: ',
-              style: const TextStyle(
-                  fontWeight: FontWeight.w600, color: Colors.grey)),
-          Expanded(
-              child: Text(value,
-                  style: const TextStyle(fontWeight: FontWeight.w500))),
+          Text('$label: ', style: const TextStyle(fontWeight: FontWeight.w900, color: Colors.black54)),
+          Expanded(child: Text(value, style: const TextStyle(fontWeight: FontWeight.w900, color: Colors.black))),
         ],
       ),
     );

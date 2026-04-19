@@ -2,7 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import '../app_store.dart';
 import '../models/car.dart';
-import '../main.dart';
+import '../widgets/custom_app_bar.dart';
 import 'car_form_screen.dart';
 import 'car_detail_screen.dart';
 
@@ -19,40 +19,36 @@ class _CarsScreenState extends State<CarsScreen> {
   @override
   Widget build(BuildContext context) {
     final store = context.watch<AppStore>();
+    final sortedCars = store.cars.toList();
+    sortedCars.sort((a, b) {
+      final isRentedA = store.activeRentals.any((r) => r.carId == a.id);
+      final isRentedB = store.activeRentals.any((r) => r.carId == b.id);
+
+      int getPriority(Car car, bool isRented) {
+        if (car.isAvailable && !isRented) return 1;
+        if (isRented) return 2;
+        return 3;
+      }
+
+      int priorityA = getPriority(a, isRentedA);
+      int priorityB = getPriority(b, isRentedB);
+
+      if (priorityA == priorityB) {
+        return a.name.compareTo(b.name);
+      }
+      return priorityA.compareTo(priorityB);
+    });
 
     return Scaffold(
-      appBar: AppBar(
-        title: const Text('Daftar Mobil'),
-        actions: [
-          Padding(
-            padding: const EdgeInsets.only(right: 12),
-            child: Text('${store.cars.length} unit',
-                style: const TextStyle(color: Colors.white70)),
-          ),
-        ],
-      ),
+      backgroundColor: Colors.white,
+      appBar: const CustomAppBar(title: 'DAFTAR MOBIL'),
       body: store.isLoading
-          ? const Center(child: CircularProgressIndicator())
+          ? const Center(child: CircularProgressIndicator(color: Colors.black))
           : store.cars.isEmpty
-              ? const Center(
-                  child: Column(
-                    mainAxisAlignment: MainAxisAlignment.center,
-                    children: [
-                      Icon(Icons.directions_car_outlined,
-                          size: 80, color: Colors.grey),
-                      SizedBox(height: 16),
-                      Text('Belum ada mobil',
-                          style: TextStyle(fontSize: 16, color: Colors.grey)),
-                      SizedBox(height: 8),
-                      Text('Tap + untuk menambah mobil',
-                          style: TextStyle(color: Colors.grey)),
-                    ],
-                  ),
-                )
+              ? _buildEmptyState()
               : NotificationListener<ScrollNotification>(
                   onNotification: (notification) {
-                    if (notification is ScrollUpdateNotification &&
-                        notification.scrollDelta != null) {
+                    if (notification is ScrollUpdateNotification && notification.scrollDelta != null) {
                       if (notification.scrollDelta! > 0 && _fabVisible) {
                         setState(() => _fabVisible = false);
                       } else if (notification.scrollDelta! < 0 && !_fabVisible) {
@@ -62,109 +58,102 @@ class _CarsScreenState extends State<CarsScreen> {
                     return false;
                   },
                   child: RefreshIndicator(
+                    color: Colors.black,
                     onRefresh: () => store.loadCars(),
                     child: ListView.builder(
-                      padding: const EdgeInsets.fromLTRB(16, 16, 16, 80),
-                      itemCount: store.cars.length,
+                      padding: const EdgeInsets.fromLTRB(20, 20, 20, 100),
+                      itemCount: sortedCars.length,
                       itemBuilder: (ctx, i) {
-                        final car = store.cars[i];
-                        return Card(
-                          margin: const EdgeInsets.only(bottom: 12),
-                          child: InkWell(
-                            borderRadius: BorderRadius.circular(16),
-                            onTap: () => Navigator.push(
-                                context,
-                                MaterialPageRoute(
-                                    builder: (_) =>
-                                        CarDetailScreen(carId: car.id))),
-                            child: Padding(
-                              padding: const EdgeInsets.all(16),
-                              child: Row(
-                                children: [
-                                  Container(
-                                    width: 60, height: 60,
-                                    decoration: BoxDecoration(
-                                      color: kPrimaryLight.withValues(alpha: 0.25),
-                                      borderRadius: BorderRadius.circular(12),
-                                    ),
-                                    child: const Icon(Icons.directions_car,
-                                        color: kPrimary, size: 34),
+                        final car = sortedCars[i];
+                        final isRented = store.activeRentals.any((r) => r.carId == car.id);
+
+                        final cardColor = isRented
+                            ? const Color(0xFFFFD180)
+                            : (car.isAvailable ? const Color(0xFFB9F6CA) : const Color(0xFFE0E0E0));
+
+                        final statusText = isRented ? 'SEDANG DISEWA' : (car.isAvailable ? 'TERSEDIA' : 'NONAKTIF');
+
+                        return GestureDetector(
+                          onTap: () => Navigator.push(context, MaterialPageRoute(builder: (_) => CarDetailScreen(carId: car.id))),
+                          child: Container(
+                            margin: const EdgeInsets.only(bottom: 16),
+                            padding: const EdgeInsets.all(16),
+                            decoration: BoxDecoration(
+                              color: cardColor,
+                              borderRadius: BorderRadius.circular(12),
+                              border: Border.all(color: Colors.black, width: 3),
+                              boxShadow: const [BoxShadow(color: Colors.black, offset: Offset(5, 5), blurRadius: 0)],
+                            ),
+                            child: Row(
+                              children: [
+                                Container(
+                                  width: 70, height: 70,
+                                  decoration: BoxDecoration(color: Colors.white, borderRadius: BorderRadius.circular(8), border: Border.all(color: Colors.black, width: 2)),
+                                  child: ClipRRect(
+                                    borderRadius: BorderRadius.circular(6),
+                                    child: (car.imageUrl != null && car.imageUrl!.trim().isNotEmpty)
+                                        ? Image.network(car.imageUrl!, fit: BoxFit.cover, errorBuilder: (ctx, err, stack) => const Icon(Icons.broken_image, color: Colors.black, size: 30))
+                                        : const Icon(Icons.directions_car, color: Colors.black, size: 34),
                                   ),
-                                  const SizedBox(width: 16),
-                                  Expanded(
-                                    child: Column(
-                                      crossAxisAlignment: CrossAxisAlignment.start,
-                                      children: [
-                                        Text(car.name,
-                                            style: const TextStyle(
-                                                fontWeight: FontWeight.bold,
-                                                fontSize: 16)),
-                                        Text('Warna: ${car.color}',
-                                            style: TextStyle(
-                                                color: Colors.grey.shade600,
-                                                fontSize: 13)),
-                                        const SizedBox(height: 4),
-                                        const Text('Rp 20.000 / 15 menit',
-                                            style: TextStyle(
-                                                fontWeight: FontWeight.bold,
-                                                color: kPrimary)),
-                                      ],
-                                    ),
-                                  ),
-                                  Column(
-                                    crossAxisAlignment: CrossAxisAlignment.end,
+                                ),
+                                const SizedBox(width: 16),
+                                Expanded(
+                                  child: Column(
+                                    crossAxisAlignment: CrossAxisAlignment.start,
                                     children: [
-                                      Container(
-                                        padding: const EdgeInsets.symmetric(
-                                            horizontal: 8, vertical: 4),
-                                        decoration: BoxDecoration(
-                                          color: car.isAvailable
-                                              ? Colors.green.shade50
-                                              : Colors.orange.shade50,
-                                          borderRadius: BorderRadius.circular(8),
-                                        ),
-                                        child: Text(
-                                          car.isAvailable ? 'Tersedia' : 'Disewa',
+                                      Text(car.name.toUpperCase(),
                                           style: TextStyle(
-                                            color: car.isAvailable
-                                                ? Colors.green
-                                                : Colors.orange,
-                                            fontSize: 12,
-                                            fontWeight: FontWeight.bold,
-                                          ),
+                                            fontWeight: FontWeight.w900, fontSize: 18, color: Colors.black,
+                                            decoration: (!car.isAvailable && !isRented) ? TextDecoration.lineThrough : TextDecoration.none,
+                                          )),
+                                      Text('WARNA: ${car.color.toUpperCase()}', style: const TextStyle(color: Colors.black87, fontSize: 12, fontWeight: FontWeight.bold)),
+                                      const SizedBox(height: 6),
+                                      Container(
+                                        padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                                        decoration: BoxDecoration(
+                                          color: isRented ? Colors.orangeAccent : (car.isAvailable ? Colors.white : Colors.grey.shade400),
+                                          border: Border.all(color: Colors.black, width: 2), borderRadius: BorderRadius.circular(6),
                                         ),
-                                      ),
-                                      const SizedBox(height: 8),
-                                      Row(
-                                        mainAxisSize: MainAxisSize.min,
-                                        children: [
-                                          IconButton(
-                                            icon: const Icon(Icons.edit, size: 20),
-                                            onPressed: () => Navigator.push(
-                                                context,
-                                                MaterialPageRoute(
-                                                    builder: (_) =>
-                                                        CarFormScreen(car: car))),
-                                            style: IconButton.styleFrom(
-                                                backgroundColor: Colors.blue.shade50),
-                                            visualDensity: VisualDensity.compact,
-                                          ),
-                                          const SizedBox(width: 4),
-                                          IconButton(
-                                            icon: const Icon(Icons.delete, size: 20),
-                                            onPressed: () =>
-                                                _confirmDelete(context, store, car),
-                                            style: IconButton.styleFrom(
-                                                backgroundColor: Colors.red.shade50,
-                                                foregroundColor: Colors.red),
-                                            visualDensity: VisualDensity.compact,
-                                          ),
-                                        ],
+                                        child: Text(statusText, style: const TextStyle(color: Colors.black, fontSize: 11, fontWeight: FontWeight.w900)),
                                       ),
                                     ],
                                   ),
-                                ],
-                              ),
+                                ),
+                                Column(
+                                  crossAxisAlignment: CrossAxisAlignment.end,
+                                  children: [
+                                    if (isRented)
+                                      Container(
+                                          padding: const EdgeInsets.all(4),
+                                          decoration: BoxDecoration(color: Colors.white, border: Border.all(color: Colors.black, width: 2), shape: BoxShape.circle),
+                                          child: const Icon(Icons.lock_clock, color: Colors.black, size: 20))
+                                    else
+                                      Transform.scale(
+                                        scale: 0.9,
+                                        child: Switch(
+                                          value: car.isAvailable,
+                                          activeThumbColor: Colors.white,
+                                          activeTrackColor: Colors.black,
+                                          inactiveThumbColor: Colors.black,
+                                          inactiveTrackColor: Colors.white,
+                                          trackOutlineColor: WidgetStateProperty.all(Colors.black),
+                                          onChanged: (bool newValue) async {
+                                            try { await store.toggleCarAvailability(car.id, newValue); } catch (e) { debugPrint(e.toString()); }
+                                          },
+                                        ),
+                                      ),
+                                    const SizedBox(height: 12),
+                                    Row(
+                                      mainAxisSize: MainAxisSize.min,
+                                      children: [
+                                        _NeoIconButton(icon: Icons.edit, color: const Color(0xFF80D8FF), onTap: () => Navigator.push(context, MaterialPageRoute(builder: (_) => CarFormScreen(car: car)))),
+                                        const SizedBox(width: 8),
+                                        _NeoIconButton(icon: Icons.delete, color: const Color(0xFFFF8A80), onTap: () => _confirmDelete(context, store, car)),
+                                      ],
+                                    ),
+                                  ],
+                                ),
+                              ],
                             ),
                           ),
                         );
@@ -172,21 +161,50 @@ class _CarsScreenState extends State<CarsScreen> {
                     ),
                   ),
                 ),
-
       floatingActionButton: AnimatedSlide(
         duration: const Duration(milliseconds: 250),
         offset: _fabVisible ? Offset.zero : const Offset(0, 2),
         child: AnimatedOpacity(
           duration: const Duration(milliseconds: 250),
           opacity: _fabVisible ? 1.0 : 0.0,
-          child: FloatingActionButton.extended(
-            onPressed: _fabVisible
-                ? () => Navigator.push(context,
-                    MaterialPageRoute(builder: (_) => const CarFormScreen()))
-                : null,
-            icon: const Icon(Icons.add),
-            label: const Text('Tambah Mobil'),
+          child: Container(
+            decoration: BoxDecoration(
+              borderRadius: BorderRadius.circular(12), border: Border.all(color: Colors.black, width: 3),
+              boxShadow: const [BoxShadow(color: Colors.black, offset: Offset(4, 4), blurRadius: 0)],
+            ),
+            child: FloatingActionButton.extended(
+              backgroundColor: const Color(0xFFEA80FC),
+              elevation: 0,
+              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(9)),
+              onPressed: _fabVisible ? () => Navigator.push(context, MaterialPageRoute(builder: (_) => const CarFormScreen())) : null,
+              icon: const Icon(Icons.add, color: Colors.black, size: 24),
+              label: const Text('TAMBAH MOBIL', style: TextStyle(color: Colors.black, fontWeight: FontWeight.w900, letterSpacing: 1.0)),
+            ),
           ),
+        ),
+      ),
+    );
+  }
+
+  Widget _buildEmptyState() {
+    return Center(
+      child: Container(
+        margin: const EdgeInsets.all(32), padding: const EdgeInsets.all(32),
+        decoration: BoxDecoration(
+          color: const Color(0xFFFFF59D),
+          border: Border.all(color: Colors.black, width: 3),
+          borderRadius: BorderRadius.circular(16),
+          boxShadow: const [BoxShadow(color: Colors.black, offset: Offset(6, 6), blurRadius: 0)],
+        ),
+        child: const Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Icon(Icons.directions_car_outlined, size: 80, color: Colors.black),
+            SizedBox(height: 16),
+            Text('BELUM ADA MOBIL', style: TextStyle(fontSize: 20, fontWeight: FontWeight.w900, color: Colors.black)),
+            SizedBox(height: 8),
+            Text('Tap tombol tambah di bawah', style: TextStyle(color: Colors.black87, fontWeight: FontWeight.bold)),
+          ],
         ),
       ),
     );
@@ -196,23 +214,38 @@ class _CarsScreenState extends State<CarsScreen> {
     showDialog(
       context: context,
       builder: (ctx) => AlertDialog(
-        title: const Text('Hapus Mobil?'),
-        content: Text('Apakah Anda yakin ingin menghapus "${car.name}"?'),
+        backgroundColor: Colors.white,
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12), side: const BorderSide(color: Colors.black, width: 3)),
+        title: const Text('HAPUS MOBIL?', style: TextStyle(fontWeight: FontWeight.w900, color: Colors.black)),
+        content: Text('Yakin ingin menghapus "${car.name}"?', style: const TextStyle(fontWeight: FontWeight.bold, color: Colors.black87)),
         actions: [
-          TextButton(
-              onPressed: () => Navigator.pop(ctx),
-              child: const Text('Batal')),
+          TextButton(onPressed: () => Navigator.pop(ctx), child: const Text('BATAL', style: TextStyle(color: Colors.black, fontWeight: FontWeight.w900))),
           ElevatedButton(
             onPressed: () async {
               Navigator.pop(ctx);
               await store.deleteCar(car.id);
-              showSnackBarWithOK('${car.name} berhasil dihapus');
             },
-            style: ElevatedButton.styleFrom(
-                backgroundColor: Colors.red, foregroundColor: Colors.white),
-            child: const Text('Hapus'),
+            style: ElevatedButton.styleFrom(backgroundColor: const Color(0xFFFF8A80), foregroundColor: Colors.black, side: const BorderSide(color: Colors.black, width: 2), shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)), elevation: 0),
+            child: const Text('HAPUS', style: TextStyle(fontWeight: FontWeight.w900)),
           ),
         ],
+      ),
+    );
+  }
+}
+
+class _NeoIconButton extends StatelessWidget {
+  final IconData icon; final Color color; final VoidCallback onTap;
+  const _NeoIconButton({required this.icon, required this.color, required this.onTap});
+
+  @override
+  Widget build(BuildContext context) {
+    return GestureDetector(
+      onTap: onTap,
+      child: Container(
+        padding: const EdgeInsets.all(6),
+        decoration: BoxDecoration(color: color, borderRadius: BorderRadius.circular(6), border: Border.all(color: Colors.black, width: 2), boxShadow: const [BoxShadow(color: Colors.black, offset: Offset(2, 2), blurRadius: 0)]),
+        child: Icon(icon, color: Colors.black, size: 18),
       ),
     );
   }

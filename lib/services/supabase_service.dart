@@ -1,3 +1,4 @@
+import 'dart:io';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import '../models/car.dart';
 import '../models/rental.dart';
@@ -5,7 +6,15 @@ import '../models/rental.dart';
 class SupabaseService {
   static final _client = Supabase.instance.client;
 
-  // CARS
+  //  FITUR UPLOAD GAMBAR 
+  static Future<String> uploadCarImage(File imageFile) async {
+    final fileName = 'car_${DateTime.now().millisecondsSinceEpoch}.jpg';
+    await _client.storage.from('car_images').upload(fileName, imageFile);
+    final imageUrl = _client.storage.from('car_images').getPublicUrl(fileName);
+    return imageUrl;
+  }
+
+  // CAR
   static Future<List<Car>> fetchCars() async {
     final res = await _client
         .from('cars')
@@ -35,7 +44,7 @@ class SupabaseService {
         .update({'is_available': isAvailable}).eq('id', id);
   }
 
-  // RENTALS
+  // RENTAL
   static Future<List<Rental>> fetchRentals() async {
     final res = await _client
         .from('rentals')
@@ -59,5 +68,14 @@ class SupabaseService {
 
   static Future<void> deleteRental(String id) async {
     await _client.from('rentals').delete().eq('id', id);
+  }
+
+  //  FITUR AUTENTIKASI 
+  static Future<void> signIn(String email, String password) async {
+    await Supabase.instance.client.auth.signInWithPassword(email: email, password: password);
+  }
+
+  static Future<void> signOut() async {
+    await Supabase.instance.client.auth.signOut();
   }
 }

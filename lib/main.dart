@@ -4,44 +4,52 @@ import 'package:intl/date_symbol_data_local.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import 'package:flutter_dotenv/flutter_dotenv.dart';
 import 'app_store.dart';
-import 'providers/theme_provider.dart';
 import 'screens/home_screen.dart';
+import 'notification_service.dart';
+import 'screens/login_screen.dart';
 
 final scaffoldMessengerKey = GlobalKey<ScaffoldMessengerState>();
+final navigatorKey = GlobalKey<NavigatorState>();
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
+  await NotificationService.init();
   await dotenv.load(fileName: '.env');
   await initializeDateFormatting('id_ID', null);
   await Supabase.initialize(
-    url:     dotenv.env['SUPABASE_URL']!,
+    url: dotenv.env['SUPABASE_URL']!,
     anonKey: dotenv.env['SUPABASE_ANON_KEY']!,
   );
+
   runApp(
     MultiProvider(
       providers: [
         ChangeNotifierProvider(create: (_) => AppStore()),
-        ChangeNotifierProvider(create: (_) => ThemeProvider()),
       ],
       child: const MyApp(),
     ),
   );
 }
 
-const kPrimary      = Color(0xFF7B1FA2);
-const kPrimaryDark  = Color(0xFF4A148C);
-const kPrimaryLight = Color(0xFFCE93D8);
-const kAccent       = Color(0xFFAB47BC);
+const kPrimary = Color(0xFF7B1FA2);
 
 void showSnackBarWithOK(String message, {Color? backgroundColor}) {
   scaffoldMessengerKey.currentState
     ?..hideCurrentSnackBar()
     ..showSnackBar(SnackBar(
-      content: Text(message),
-      backgroundColor: backgroundColor,
+      content: Text(message,
+          style: const TextStyle(
+              color: Colors.black, fontWeight: FontWeight.w900, fontSize: 14)),
+      backgroundColor: backgroundColor ?? const Color(0xFFFFF59D),
+      behavior: SnackBarBehavior.floating,
+      elevation: 0,
+      shape: RoundedRectangleBorder(
+        side: const BorderSide(color: Colors.black, width: 3),
+        borderRadius: BorderRadius.circular(8),
+      ),
       action: SnackBarAction(
         label: 'OK',
-        textColor: Colors.white,
+        textColor: Colors.black,
         onPressed: () =>
             scaffoldMessengerKey.currentState?.hideCurrentSnackBar(),
       ),
@@ -53,90 +61,42 @@ class MyApp extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final themeProvider = context.watch<ThemeProvider>();
-
     return MaterialApp(
       title: 'ToyCar Rental',
       debugShowCheckedModeBanner: false,
       scaffoldMessengerKey: scaffoldMessengerKey,
-      themeMode: themeProvider.themeMode,
-
-      // Light Theme
+      navigatorKey: navigatorKey,
+      themeMode: ThemeMode.light,
       theme: ThemeData(
+        brightness: Brightness.light,
+        scaffoldBackgroundColor: Colors.white,
         colorScheme: ColorScheme.fromSeed(
-          seedColor: kPrimary,
-          brightness: Brightness.light,
-        ),
+            seedColor: kPrimary, brightness: Brightness.light),
         useMaterial3: true,
-        appBarTheme: const AppBarTheme(
-          centerTitle: true,
-          elevation: 0,
-          backgroundColor: kPrimary,
-          foregroundColor: Colors.white,
-        ),
-        cardTheme: CardThemeData(
-          elevation: 3,
-          shape: RoundedRectangleBorder(
-              borderRadius: BorderRadius.circular(16)),
-        ),
-        inputDecorationTheme: InputDecorationTheme(
-          filled: true,
-          fillColor: Colors.grey.shade100,
-          border: OutlineInputBorder(
-            borderRadius: BorderRadius.circular(12),
-            borderSide: BorderSide.none,
-          ),
-          focusedBorder: OutlineInputBorder(
-            borderRadius: BorderRadius.circular(12),
-            borderSide: const BorderSide(color: kPrimary, width: 2),
-          ),
-          contentPadding:
-              const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
-        ),
-        floatingActionButtonTheme: const FloatingActionButtonThemeData(
-          backgroundColor: kPrimary,
-          foregroundColor: Colors.white,
-        ),
       ),
+      home: const AuthWrapper(),
+    );
+  }
+}
 
-      // Dark Theme
-      darkTheme: ThemeData(
-        colorScheme: ColorScheme.fromSeed(
-          seedColor: kPrimary,
-          brightness: Brightness.dark,
-        ),
-        useMaterial3: true,
-        appBarTheme: const AppBarTheme(
-          centerTitle: true,
-          elevation: 0,
-          backgroundColor: kPrimaryDark,
-          foregroundColor: Colors.white,
-        ),
-        cardTheme: CardThemeData(
-          elevation: 3,
-          shape: RoundedRectangleBorder(
-              borderRadius: BorderRadius.circular(16)),
-        ),
-        inputDecorationTheme: InputDecorationTheme(
-          filled: true,
-          border: OutlineInputBorder(
-            borderRadius: BorderRadius.circular(12),
-            borderSide: BorderSide.none,
-          ),
-          focusedBorder: OutlineInputBorder(
-            borderRadius: BorderRadius.circular(12),
-            borderSide: const BorderSide(color: kPrimaryLight, width: 2),
-          ),
-          contentPadding:
-              const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
-        ),
-        floatingActionButtonTheme: const FloatingActionButtonThemeData(
-          backgroundColor: kPrimaryDark,
-          foregroundColor: Colors.white,
-        ),
-      ),
+class AuthWrapper extends StatelessWidget {
+  const AuthWrapper({super.key});
 
-      home: const HomeScreen(),
+  @override
+  Widget build(BuildContext context) {
+    return StreamBuilder<AuthState>(
+      stream: Supabase.instance.client.auth.onAuthStateChange,
+      builder: (context, snapshot) {
+        if (snapshot.connectionState == ConnectionState.waiting) {
+          return const Scaffold(
+              body: Center(child: CircularProgressIndicator(color: Colors.black)));
+        }
+        final session = snapshot.data?.session;
+        if (session != null) {
+          return const HomeScreen();
+        }
+        return const LoginScreen();
+      },
     );
   }
 }

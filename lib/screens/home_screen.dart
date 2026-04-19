@@ -1,7 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import '../app_store.dart';
-import '../providers/theme_provider.dart';
 import 'cars_screen.dart';
 import 'rentals_screen.dart';
 import 'dashboard_screen.dart';
@@ -32,42 +31,59 @@ class _HomeScreenState extends State<HomeScreen> {
 
   @override
   Widget build(BuildContext context) {
-    final themeProvider = context.watch<ThemeProvider>();
-    final isDark = themeProvider.isDark;
+    const bgColor = Colors.white;
+    const borderColor = Colors.black;
+    const iconColor = Colors.black;
 
     return Scaffold(
+      backgroundColor: bgColor,
       body: _screens[_selectedIndex],
-      bottomNavigationBar: NavigationBar(
-        selectedIndex: _selectedIndex,
-        onDestinationSelected: (index) =>
-            setState(() => _selectedIndex = index),
-        indicatorColor: const Color(0xFFCE93D8),
-        destinations: const [
-          NavigationDestination(
-            icon: Icon(Icons.dashboard_outlined),
-            selectedIcon: Icon(Icons.dashboard),
-            label: 'Dashboard',
+      bottomNavigationBar: Container(
+        decoration: const BoxDecoration(
+          color: bgColor,
+          border: Border(top: BorderSide(color: borderColor, width: 4)), 
+        ),
+        child: NavigationBarTheme(
+          data: NavigationBarThemeData(
+            backgroundColor: bgColor,
+            indicatorColor: const Color(0xFFEA80FC), 
+            indicatorShape: RoundedRectangleBorder(
+              side: const BorderSide(color: borderColor, width: 2),
+              borderRadius: BorderRadius.circular(8),
+            ),
+            labelTextStyle: WidgetStateProperty.resolveWith((states) {
+              if (states.contains(WidgetState.selected)) {
+                return const TextStyle(fontWeight: FontWeight.w900, color: iconColor, fontSize: 12, letterSpacing: 1.0);
+              }
+              return const TextStyle(fontWeight: FontWeight.bold, color: Colors.black54, fontSize: 11);
+            }),
           ),
-          NavigationDestination(
-            icon: Icon(Icons.directions_car_outlined),
-            selectedIcon: Icon(Icons.directions_car),
-            label: 'Mobil',
+          child: NavigationBar(
+            height: 65,
+            elevation: 0,
+            selectedIndex: _selectedIndex,
+            onDestinationSelected: (index) =>
+                setState(() => _selectedIndex = index),
+            destinations: const [
+              NavigationDestination(
+                icon: Icon(Icons.dashboard_outlined, color: iconColor),
+                selectedIcon: Icon(Icons.dashboard, color: Colors.black),
+                label: 'DASHBOARD',
+              ),
+              NavigationDestination(
+                icon: Icon(Icons.directions_car_outlined, color: iconColor),
+                selectedIcon: Icon(Icons.directions_car, color: Colors.black),
+                label: 'MOBIL',
+              ),
+              NavigationDestination(
+                icon: Icon(Icons.receipt_long_outlined, color: iconColor),
+                selectedIcon: Icon(Icons.receipt_long, color: Colors.black),
+                label: 'SEWA',
+              ),
+            ],
           ),
-          NavigationDestination(
-            icon: Icon(Icons.receipt_long_outlined),
-            selectedIcon: Icon(Icons.receipt_long),
-            label: 'Penyewaan',
-          ),
-        ],
+        ),
       ),
-
-      floatingActionButton: FloatingActionButton.small(
-        heroTag: 'theme_toggle',
-        onPressed: themeProvider.toggleTheme,
-        tooltip: isDark ? 'Light Mode' : 'Dark Mode',
-        child: Icon(isDark ? Icons.light_mode : Icons.dark_mode),
-      ),
-      floatingActionButtonLocation: FloatingActionButtonLocation.endContained,
     );
   }
 }
