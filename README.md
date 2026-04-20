@@ -43,7 +43,7 @@
 
 ## Profil Anggota
 
-**Kelompok :** (isi nomor kelompok)  
+**Kelompok :** ()  
 **Kelas :** Sistem Informasi  
 **Mata Kuliah :** Pemrograman Aplikasi Bergerak
 
