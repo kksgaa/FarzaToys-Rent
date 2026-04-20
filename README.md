@@ -1,6 +1,6 @@
 <div align="center">
 
-<img src="https://readme-typing-svg.demolab.com?font=Fira+Code&weight=700&size=28&pause=1000&color=7B1FA2&center=true&vCenter=true&width=500&lines=FARZATOYS+RENTAL+🚗;Aplikasi+Penyewaan+Mobil+Mainan" alt="Typing SVG" />
+<img width="120" height="120" alt="app_icon" src="https://github.com/user-attachments/assets/993b5916-ffe9-4fe2-bf7a-e866dae380bb" />
 
 <br/>
 
@@ -16,7 +16,7 @@
 
 <br/>
 
-> **Proyek Akhir Mobile** · Flutter + Supabase · 2026
+> **Proyek Akhir Pemrograman Aplikasi Bergerak** · Flutter + Supabase · 2026
 
 </div>
 
@@ -43,17 +43,17 @@
 
 ## Profil Anggota
 
-**Kelompok :** ()  
+**Kelompok :** 7 Hara Hetta
 **Kelas :** Sistem Informasi  
 **Mata Kuliah :** Pemrograman Aplikasi Bergerak
 
 | Nama | NIM | Kelas | GitHub |
 |------|-----|-------|--------|
 | Yulius Pune' | 2409116110 | Sistem Informasi C '24 | [![GitHub](https://img.shields.io/badge/Oxcyy-181717?style=flat-square&logo=github&logoColor=white)](https://github.com/Oxcyy) |
-| Muhammad Fakhri Al-Kautsar  | 2409116081 | Sistem Informasi C '24 | [![GitHub](https://img.shields.io/badge/Oxcyy-181717?style=flat-square&logo=github&logoColor=white)](https://github.com/Oxcyy) |
-| Yudha Tri Atmaja  | 2409116095 | Sistem Informasi C '24 | [![GitHub](https://img.shields.io/badge/Oxcyy-181717?style=flat-square&logo=github&logoColor=white)](https://github.com/Oxcyy) |
-| Elvira Agustin  | 2409116109 | Sistem Informasi C '24 | [![GitHub](https://img.shields.io/badge/Oxcyy-181717?style=flat-square&logo=github&logoColor=white)](https://github.com/Oxcyy) |
-| Rizky wahyu dina putri  | 2409116111 | Sistem Informasi C '24 | [![GitHub](https://img.shields.io/badge/Oxcyy-181717?style=flat-square&logo=github&logoColor=white)](https://github.com/Oxcyy) |
+| Muhammad Fakhri Al-Kautsar  | 2409116081 | Sistem Informasi C '24 | [![GitHub](https://img.shields.io/badge/kksgaa-181717?style=flat-square&logo=github&logoColor=white)](https://github.com/kksgaa) |
+| Yudha Tri Atmaja  | 2409116095 | Sistem Informasi C '24 | [![GitHub](https://img.shields.io/badge/Yudhatriatmajaa-181717?style=flat-square&logo=github&logoColor=white)](https://github.com/Yudhatriatmajaa) |
+| Elvira Agustin  | 2409116109 | Sistem Informasi C '24 | [![GitHub](https://img.shields.io/badge/elviraags-181717?style=flat-square&logo=github&logoColor=white)](https://github.com/elviraags) |
+| Rizky wahyu dina putri  | 2409116111 | Sistem Informasi C '24 | [![GitHub](https://img.shields.io/badge/Dinaapp-181717?style=flat-square&logo=github&logoColor=white)](https://github.com/Dinaapp) |
 
 ---
 
