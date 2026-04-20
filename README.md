@@ -1,3 +1,5 @@
+# FarzaToys Rental
+
 <div align="center">
 
 <img width="120" height="120" alt="app_icon" src="https://github.com/user-attachments/assets/993b5916-ffe9-4fe2-bf7a-e866dae380bb" />
@@ -21,23 +23,11 @@
 </div>
 
 ---
+**Aplikasi manajemen penyewaan mobil mainan berbasis Flutter & Supabase**
 
-## Daftar Isi
+*Kelola armada, transaksi sewa, dan antrian pelanggan — semuanya dalam satu aplikasi.*
 
-- [Profil Anggota](#profil-anggota)
-- [Tentang Aplikasi](#tentang-aplikasi)
-- [Fitur](#fitur)
-- [Implementasi](#implementasi)
-  - [Widget](#widget)
-  - [State Management](#state-management--provider)
-  - [Navigation](#navigation)
-  - [Supabase](#supabase)
-  - [Konfigurasi .env](#konfigurasi-env)
-  - [Package Tambahan](#package-tambahan)
-- [Instalasi](#instalasi)
-- [Struktur Proyek](#struktur-proyek)
-- [Rumus Kalkulasi Biaya](#rumus-kalkulasi-biaya)
-- [Lisensi](#lisensi)
+</div>
 
 ---
 
@@ -57,226 +47,167 @@
 
 ---
 
-## Tentang Aplikasi
+## Deskripsi
 
-**FARZATOYS RENTAL** adalah aplikasi mobile yang dibangun dengan Flutter untuk membantu mitra usaha penyewaan mobil mainan mengelola armada, data penyewa, dan transaksi secara digital. Seluruh data tersimpan di cloud menggunakan Supabase — real-time, aman, dan mudah diakses.
+**FarzaToys Rental** adalah aplikasi mobile manajemen penyewaan mobil mainan yang dibangun menggunakan Flutter dengan backend real-time Supabase. Aplikasi ini dirancang untuk memudahkan operator/pemilik usaha dalam mengelola stok unit, mencatat transaksi sewa, memantau pendapatan harian, hingga mengelola antrian pelanggan — semuanya secara digital dan efisien.
 
----
-
-## Fitur
-
-| Fitur | Deskripsi |
-|-------|-----------|
-| **Login** | Autentikasi email & password via Supabase Auth |
-| **Manajemen Unit Mobil** | CRUD lengkap data unit mobil beserta foto |
-| **Manajemen Penyewaan** | Tambah, edit, update status, dan hapus transaksi sewa |
-| **Kalkulasi Otomatis** | Biaya dihitung real-time: `(menit ÷ 15) × Rp 20.000` |
-| **Notifikasi Pengingat** | Alert terjadwal saat waktu sewa hampir habis |
-| **Dark / Light Mode** | Tema aplikasi bisa diubah kapan saja |
-| **Upload Foto** | Ambil foto dari kamera/galeri, simpan ke Supabase Storage |
-| **Dashboard** | Statistik harian: armada, ketersediaan, sewa aktif, pendapatan |
+Aplikasi mendukung multi-akun dengan sistem autentikasi berbasis Supabase Auth, di mana admin memiliki akses penuh termasuk kelola akun pengguna lain.
 
 ---
 
-## Implementasi
+## Fitur Utama
 
-### Widget
+### Autentikasi & Manajemen Akun
+- Login & logout menggunakan Supabase Auth
+- Registrasi akun baru (khusus Admin)
+- Role-based access: **Admin** (`admin@gmail.com`) memiliki menu tambahan untuk kelola akun
+- Session persisten — pengguna tetap login setelah menutup aplikasi
 
-| Widget | Penggunaan |
-|--------|------------|
-| `Scaffold` | Kerangka dasar setiap halaman |
-| `StreamBuilder` | Memantau status sesi autentikasi secara reaktif |
-| `ListView.builder` | Render daftar mobil dan transaksi secara dinamis |
-| `TextField` | Input pada form login, data mobil, dan penyewa |
-| `SingleChildScrollView` | Halaman yang bisa di-scroll (form & dashboard) |
-| `InkWell` + `Container` | Tombol custom bergaya neobrutalism |
-| `CircularProgressIndicator` | Loading state saat proses async berlangsung |
-| `SnackBar` | Feedback ke pengguna setelah aksi |
-| `Row` + `Expanded` | Layout grid kartu statistik di dashboard |
+### Manajemen Unit (Mobil Mainan)
+- Tambah, edit, dan hapus unit mobil
+- Upload foto unit menggunakan **Image Picker**
+- Atur harga sewa per 15 menit secara individual
+- Toggle ketersediaan unit (Tersedia / Disewa)
+- Tampilkan warna, nama, catatan, dan gambar unit
 
----
+### Manajemen Penyewaan
+- Buat transaksi sewa baru dengan data penyewa lengkap:
+  - Nama, nomor telepon, alamat
+  - Pilih unit & durasi sewa
+  - Status pembayaran (lunas / belum)
+- Kembalikan unit dan otomatis tandai unit sebagai tersedia
+- Perpanjang waktu sewa + tambah biaya
+- Hapus transaksi (unit otomatis dikembalikan jika masih aktif)
+- Filter: **Semua** / **Aktif** / **Selesai**
 
-### State Management — Provider
+### Pembayaran & Pendapatan
+- Tandai transaksi sebagai **Lunas** atau **Belum Dibayar**
+- Dashboard pendapatan **hari ini** — otomatis dihitung dari transaksi yang selesai dan lunas
+- Harga dihitung otomatis berdasarkan durasi dan tarif per unit
 
-```dart
-MultiProvider(
-  providers: [
-    ChangeNotifierProvider(create: (_) => AppStore()),      // data mobil & rental
-    ChangeNotifierProvider(create: (_) => ThemeProvider()), // dark/light mode
-  ],
-  child: const MyApp(),
-)
-```
+### Notifikasi Lokal
+- Jadwalkan pengingat otomatis saat durasi sewa akan habis
+- Notifikasi berbasis **flutter_local_notifications** dengan timezone lokal (Asia/Makassar)
+- Dukungan alarm (Android)
 
-| Method | Fungsi |
-|--------|--------|
-| `context.watch<T>()` | Subscribe state, rebuild otomatis saat berubah |
-| `context.read<T>()` | Akses state tanpa trigger rebuild |
-| `notifyListeners()` | Broadcast perubahan ke semua listener |
+### Antrian Pelanggan
+- Tambah pelanggan ke daftar antrian jika unit sedang penuh
+- Opsional: tentukan unit target yang ditunggu
+- Hapus antrian saat pelanggan sudah mulai penyewaan
 
----
-
-### Navigation
-
-Navigasi menggunakan **Navigator** bawaan Flutter dengan `MaterialPageRoute`.
-
-```
-LoginScreen
-    └── HomeScreen  ←  BottomNavigationBar
-          ├── DashboardScreen
-          ├── CarsScreen
-          │     ├── CarDetailScreen
-          │     └── CarFormScreen      ← tambah / edit + upload foto
-          └── RentalsScreen
-                ├── RentalDetailScreen
-                └── RentalFormScreen   ← tambah / edit penyewaan
-```
+### Tampilan & Tema
+- Desain **bold & playful** dengan warna kuning primer (`#FFEB3B`) dan ungu (`#7B1FA2`)
+- Custom AppBar dengan bottom border tebal bergaya neo-brutalist
+- SnackBar custom dengan border tebal dan aksi "OK"
 
 ---
 
-### Supabase
+## Struktur Widget Utama
 
-| Layanan | Implementasi |
-|---------|-------------|
-| **Auth** | Login email & password — session dipantau via `onAuthStateChange` stream |
-| **Database** | PostgreSQL — tabel `cars` dan `rentals` |
-| **Storage** | Bucket `car_images` untuk foto unit mobil |
-
-```dart
-// lib/services/supabase_service.dart
-static Future<String> uploadCarImage(File imageFile) async {
-  final fileName = 'car_${DateTime.now().millisecondsSinceEpoch}.jpg';
-  await _client.storage.from('car_images').upload(fileName, imageFile);
-  return _client.storage.from('car_images').getPublicUrl(fileName);
-}
-```
-
----
-
-### Konfigurasi .env
-
-Kredensial API dikelola dengan `flutter_dotenv` — tidak pernah masuk ke repository.
-
-```env
-# .env — jangan di-commit
-SUPABASE_URL=https://your-project-id.supabase.co
-SUPABASE_ANON_KEY=your-anon-key-here
-```
-
-```dart
-// main.dart
-await dotenv.load(fileName: '.env');
-await Supabase.initialize(
-  url: dotenv.env['SUPABASE_URL']!,
-  anonKey: dotenv.env['SUPABASE_ANON_KEY']!,
-);
-```
-
-> Salin `.env.example` → `.env`, lalu isi dengan kredensial proyek Supabase Anda.
+| Widget / Screen | Deskripsi |
+|---|---|
+| `AuthWrapper` | StreamBuilder yang memantau sesi auth Supabase dan mengarahkan ke HomeScreen atau LoginScreen |
+| `HomeScreen` | Halaman utama berisi dashboard, daftar unit, dan transaksi aktif |
+| `LoginScreen` | Form login dengan Supabase Auth |
+| `RegisterScreen` | Form registrasi akun baru (hanya admin) |
+| `CustomAppBar` | AppBar reusable dengan aksi menu (kelola akun & logout), role-aware |
+| `CarCard` | Kartu unit mobil dengan gambar, status, dan tombol aksi |
+| `RentalCard` | Kartu transaksi sewa dengan info penyewa, durasi, dan status bayar |
+| `QueueList` | Daftar antrian pelanggan yang menunggu unit |
+| `AddCarDialog` | Dialog tambah/edit unit mobil |
+| `AddRentalSheet` | Bottom sheet form transaksi sewa baru |
+| `ExtendTimeDialog` | Dialog perpanjangan waktu sewa |
 
 ---
 
-### Package Tambahan
-
-| Package | Versi | Kegunaan |
-|---------|:-----:|----------|
-| `provider` | ^6.1.1 | State management global |
-| `intl` | ^0.18.1 | Format Rupiah & tanggal lokal `id_ID` |
-| `flutter_local_notifications` | ^21.0.0 | Notifikasi terjadwal pengingat akhir sewa |
-| `timezone` | ^0.11.0 | Zona waktu `Asia/Makassar` (WITA) |
-| `image_picker` | ^1.2.1 | Akses kamera & galeri perangkat |
-| `flutter_launcher_icons` | ^0.14.1 | Generate icon aplikasi untuk Android dan iOS |
-
----
-
-## Instalasi
-
-> Prasyarat: Flutter `>=3.0.0`, Android Studio / VS Code, akun Supabase aktif.
-
-```bash
-# 1. Clone repositori
-git clone https://github.com/Oxcyy/rental_mobil_mainan.git
-cd rental_mobil_mainan
-
-# 2. Buat file .env dari template
-cp .env.example .env
-```
-
-Isi file `.env` dengan kredensial Supabase kamu:
-
-```env
-SUPABASE_URL=https://your-project-id.supabase.co
-SUPABASE_ANON_KEY=your-anon-key-here
-```
-
-```bash
-# 3. Install dependencies
-flutter pub get
-
-# 4. Jalankan aplikasi
-flutter run
-```
-
-Dapatkan kredensial di **Supabase Dashboard → Project Settings → API**.
-
----
-
-## Struktur Proyek
+## Arsitektur & State Management
 
 ```
 lib/
-├── app_store.dart               # Global state (Provider)
-├── main.dart                    # Entry point & inisialisasi app
-├── notification_service.dart    # Notifikasi terjadwal (WITA)
-│
+├── main.dart                  # Entry point, inisialisasi Supabase & Provider
+├── app_store.dart             # State management global (ChangeNotifier)
+├── notification_service.dart  # Layanan notifikasi lokal
 ├── models/
-│   ├── car.dart                 # Model unit mobil
-│   ├── rental.dart              # Model penyewaan + kalkulasi harga
-│   └── queue_item.dart
-│
-├── providers/
-│   └── theme_provider.dart      # Dark / Light mode
-│
-├── screens/
-│   ├── login_screen.dart
-│   ├── home_screen.dart
-│   ├── dashboard_screen.dart
-│   ├── cars_screen.dart
-│   ├── car_detail_screen.dart
-│   ├── car_form_screen.dart
-│   ├── rentals_screen.dart
-│   ├── rental_detail_screen.dart
-│   └── rental_form_screen.dart
-│
+│   ├── car.dart               # Model data unit mobil
+│   ├── rental.dart            # Model data transaksi sewa
+│   └── queue_item.dart        # Model data antrian
 ├── services/
-│   └── supabase_service.dart    # Semua operasi CRUD & Auth
-│
+│   └── supabase_service.dart  # Abstraksi operasi database Supabase
+├── screens/
+│   ├── home_screen.dart
+│   ├── login_screen.dart
+│   └── register_screen.dart
 └── widgets/
     └── custom_app_bar.dart
 ```
 
----
-
-## Rumus Kalkulasi Biaya
-
-```
-Total = (Durasi menit ÷ 15) × Rp 20.000
-
-Contoh:  30 menit  →  (30 ÷ 15) × 20.000  =  Rp 40.000
-         60 menit  →  (60 ÷ 15) × 20.000  =  Rp 80.000
-```
+**State Management:** Provider (`ChangeNotifier`) melalui `AppStore` — satu sumber kebenaran untuk data unit, sewa, dan antrian.
 
 ---
 
-## Lisensi
+## Skema Database (Supabase)
 
-MIT License — lihat [LICENSE](LICENSE) untuk detail.
+### Tabel `cars`
+ 
+> Menyimpan data seluruh unit mobil mainan yang dimiliki.
+ 
+| Kolom | Tipe | Default | Keterangan |
+|---|---|---|---|
+| `id` | `uuid` | `gen_random_uuid()` | Primary key, otomatis di-generate |
+| `created_at` | `timestamptz` | `now()` | Waktu data dibuat |
+| `name` | `text` | `NULL` | Nama unit mobil |
+| `color` | `text` | `NULL` | Warna unit |
+| `is_available` | `bool` | `true` | Status ketersediaan unit |
+| `status` | `text` | `'available'` | Status detail: `available` / `rented` |
+| `note` | `text` | `NULL` | Catatan tambahan unit |
+| `image_url` | `text` | `NULL` | URL foto unit (dari Supabase Storage) |
+| `price_per_15_mins` | `int4` | `20000` | Tarif sewa per 15 menit (Rupiah) |
+
+
+### Tabel `rentals`
+ 
+> Menyimpan seluruh riwayat dan transaksi sewa aktif.
+ 
+| Kolom | Tipe | Default | Keterangan |
+|---|---|---|---|
+| `id` | `uuid` | `gen_random_uuid()` | Primary key |
+| `created_at` | `timestamptz` | `now()` | Waktu transaksi dibuat |
+| `car_id` | `uuid` | — | FK → `cars.id` |
+| `car_name` | `text` | — | Snapshot nama unit saat sewa |
+| `renter_name` | `text` | — | Nama penyewa |
+| `renter_phone` | `text` | — | Nomor telepon penyewa |
+| `renter_address` | `text` | — | Alamat penyewa |
+| `start_time` | `timestamptz` | — | Waktu mulai sewa |
+| `end_time` | `timestamptz` | — | Waktu selesai sewa |
+| `duration_minutes` | `int4` | — | Total durasi dalam menit |
+| `total_price` | `int4` | — | Total biaya sewa (Rupiah) |
+| `is_paid` | `bool` | `false` | Status pembayaran |
+| `status` | `text` | `'active'` | Status sewa: `active` / `returned` |
+
+
+## Dependencies
+
+| Package | Versi | Fungsi |
+|---|---|---|
+| `provider` | ^6.1.1 | State management |
+| `supabase_flutter` | ^2.3.4 | Backend & Auth |
+| `flutter_dotenv` | ^5.1.0 | Konfigurasi environment |
+| `intl` | ^0.18.1 | Format tanggal & angka (Bahasa Indonesia) |
+| `flutter_local_notifications` | ^21.0.0 | Notifikasi lokal terjadwal |
+| `timezone` | ^0.11.0 | Zona waktu (Asia/Makassar) |
+| `image_picker` | ^1.2.1 | Upload foto dari galeri/kamera |
+| `flutter_launcher_icons` | ^0.14.1 | Generate ikon aplikasi |
 
 ---
 
-<div align="center">
 
-Made with Flutter & Supabase · FARZATOYS RENTAL · Proyek Akhir Mobile 2026
+## Akun Default
 
-</div>
+| Role | Email | Akses |
+|---|---|---|
+| **Admin** | `admin@gmail.com` | Semua fitur + kelola akun pengguna |
+| **Operator** | *(akun lain)* | Fitur operasional standar |
 
+> Admin dapat membuat akun operator melalui menu **Kelola Akun** di AppBar.
+
+---
